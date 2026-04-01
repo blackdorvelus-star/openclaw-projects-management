@@ -1,0 +1,180 @@
+# skill-projets-paralleles.yml
+# Skill OpenClaw pour gérer Jurisscan et Lyss en parallèle
+
+name: projets-paralleles
+version: 1.0.0
+description: Gestion parallèle des projets Jurisscan et Lyss
+author: OpenClaw Assistant
+created: 2026-04-01
+
+# Triggers
+triggers:
+  - "projets"
+  - "jurisscan et lyss"
+  - "deux projets"
+  - "démarrer projets"
+  - "dashboard projets"
+  - "arrêter projets"
+  - "état projets"
+
+# Variables
+variables:
+  workspace: "D:\OpenClaw-Projects\mes-projets"
+  jurisscan_path: "{{workspace}}\jurisscan-7393c5ef-main"
+  lyss_path: "{{workspace}}\lyss"
+  jurisscan_port: 3000
+  lyss_port: 3001
+
+# Actions
+actions:
+  # Dashboard
+  - name: dashboard
+    description: Afficher le dashboard des projets
+    type: exec
+    command: powershell -ExecutionPolicy Bypass -File "D:\OpenClaw-Projects\dashboard-projets.ps1"
+    interactive: true
+
+  # Démarrer les deux projets
+  - name: démarrer-tous
+    description: Démarrer Jurisscan et Lyss en parallèle
+    type: exec
+    command: powershell -ExecutionPolicy Bypass -File "D:\OpenClaw-Projects\dashboard-projets.ps1" -AutoStart
+    interactive: true
+
+  # Démarrer Jurisscan seul
+  - name: démarrer-jurisscan
+    description: Démarrer le projet Jurisscan
+    type: exec
+    command: |
+      cd "{{jurisscan_path}}"
+      $env:PORT={{jurisscan_port}}
+      npm run dev
+    background: true
+    confirm: true
+
+  # Démarrer Lyss seul
+  - name: démarrer-lyss
+    description: Démarrer le projet Lyss
+    type: exec
+    command: |
+      cd "{{lyss_path}}"
+      $env:PORT={{lyss_port}}
+      npm run dev
+    background: true
+    confirm: true
+
+  # Arrêter les projets
+  - name: arrêter-tous
+    description: Arrêter tous les projets
+    type: exec
+    command: |
+      Get-Process node -ErrorAction SilentlyContinue | 
+      Where-Object { $_.Path -like "*jurisscan*" -or $_.Path -like "*lyss*" } |
+      Stop-Process -Force
+      Write-Host "✅ Tous les projets arrêtés" -ForegroundColor Green
+    confirm: true
+
+  # Installer dépendances
+  - name: installer-dépendances
+    description: Installer les dépendances des deux projets
+    type: exec
+    command: |
+      # Jurisscan
+      cd "{{jurisscan_path}}"
+      if (Test-Path "package.json") {
+        Write-Host "📦 Installation Jurisscan..." -ForegroundColor Cyan
+        if (Test-Path "bun.lock" -or Test-Path "bun.lockb") {
+          bun install
+        } else {
+          npm install
+        }
+      }
+      
+      # Lyss
+      cd "{{lyss_path}}"
+      if (Test-Path "package.json") {
+        Write-Host "📦 Installation Lyss..." -ForegroundColor Cyan
+        if (Test-Path "bun.lock" -or Test-Path "bun.lockb") {
+          bun install
+        } else {
+          npm install
+        }
+      }
+      
+      Write-Host "✅ Dépendances installées pour les deux projets" -ForegroundColor Green
+    interactive: true
+
+  # Vérifier l'état
+  - name: état
+    description: Vérifier l'état des projets
+    type: exec
+    command: |
+      $projects = @(
+        @{Name="Jurisscan"; Path="{{jurisscan_path}}"; Port={{jurisscan_port}}},
+        @{Name="Lyss"; Path="{{lyss_path}}"; Port={{lyss_port}}}
+      )
+      
+      foreach ($p in $projects) {
+        Write-Host "`n📁 $($p.Name)" -ForegroundColor Cyan
+        Write-Host "  Chemin: $($p.Path)"
+        
+        if (Test-Path $p.Path) {
+          Write-Host "  ✅ Présent" -ForegroundColor Green
+          
+          # Vérifier processus
+          $process = Get-Process node -ErrorAction SilentlyContinue | 
+                    Where-Object { $_.Path -like "*$($p.Name)*" }
+          if ($process) {
+            Write-Host "  🟢 En cours (PID: $($process.Id))" -ForegroundColor Green
+            Write-Host "  🔗 http://localhost:$($p.Port)" -ForegroundColor Blue
+          } else {
+            Write-Host "  🔴 Arrêté" -ForegroundColor Red
+          }
+        } else {
+          Write-Host "  ❌ Introuvable" -ForegroundColor Red
+        }
+      }
+
+  # Ouvrir dans VS Code
+  - name: ouvrir-code
+    description: Ouvrir les deux projets dans VS Code
+    type: exec
+    command: |
+      code "{{jurisscan_path}}"
+      code "{{lyss_path}}"
+      Write-Host "✅ Projets ouverts dans VS Code" -ForegroundColor Green
+
+# Documentation
+documentation: |
+  # Skill Projets Parallèles
+  
+  Ce skill permet de gérer les projets Jurisscan et Lyss en parallèle.
+  
+  ## Commandes disponibles :
+  
+  ### Dashboard
+  - "dashboard projets" : Affiche le dashboard interactif
+  - "état projets" : Vérifie l'état des projets
+  
+  ### Démarrage
+  - "démarrer projets" : Démarre les deux projets
+  - "démarrer jurisscan" : Démarre seulement Jurisscan
+  - "démarrer lyss" : Démarre seulement Lyss
+  
+  ### Arrêt
+  - "arrêter projets" : Arrête tous les projets
+  
+  ### Installation
+  - "installer dépendances" : Installe les dépendances des deux projets
+  
+  ### Développement
+  - "ouvrir projets" : Ouvre les projets dans VS Code
+  
+  ## Ports :
+  - Jurisscan : http://localhost:3000
+  - Lyss : http://localhost:3001
+  
+  ## Chemins :
+  - Workspace : D:\OpenClaw-Projects\mes-projets\
+  - Jurisscan : D:\OpenClaw-Projects\mes-projets\jurisscan-7393c5ef-main\
+  - Lyss : D:\OpenClaw-Projects\mes-projets\lyss\
